@@ -12,8 +12,8 @@ Le projet est organisé en deux parties :
 
 Les différents exercices sont matérialisés par des tags git dont voici la liste ordonnée : 
 - instructions (commencez ici)
-- init (vous êtes ici)
-- first-component
+- init 
+- first-component (vous êtes ici)
 - let-s-interact
 - be-reactive
 - use-component-in-component
@@ -25,60 +25,107 @@ Les différents exercices sont matérialisés par des tags git dont voici la lis
 
 ## Concept Leptos
 
-Leptos propose trois quatres méthodes principales pour démarrer un projet :
-- une crate front seule. Le rendu ne pourrat être que client-side-rendering
-- un starter actix + leptos. 
-Actix est un serveur rust.
-Il servira de back-for-front. 
-Le rendu sera par defaut en server-side-rendering.
-- un starter axum + leptos. Le principe est identique au précédent mais avec axum en backend
-- un starter axum + leptos en workspaces séparés.
-On aura un serveur axum à part et un front en CSR.
+Dans Leptos, la déclaration d'un composant repose sur deux choses :
+ - la macro `#[component]`
+ - une fonction qui retourne un `impl IntoView`
 
-Nous allons choisir la troisième solution pour ce tutoriel.
-Le projet généré se composera de 3 fichiers sources : 
-- app.rs : la racine de notre future page web. Elle contient :
-    - la structure de notre page avec le head et body dans le composant `shell`
-    - un exemple de router dans le composant `App`
-    - Un troisième composant orienté html
-- main.rs : le serveur axum. 
-- lib.rs : De la glue entre app.rs et main.rs. Nous n'y toucherons pas
+Pour facilité la seconde partie, Leptos fournit la macro `view!` qui va retourner un élément `impl IntoView` depuis un RSX (comme JSX, mais en Rust).
+Regardons un exemple simple
 
-## TODO de l'étape `init`
-
-Si vous êtes à l'aise avec Rust, sentez-vous libre de changer de starter. 
-Si vous avez un soucis de connexion, copier la solution. 
-Elle contient un dossier vendor avec toutes les dépendances pour une installation hors ligne.
-De même, si vous ne souhaitez pas faire le css, vous pouvez copier le style présent dans la solution.
-
-```bash
-cargo install cargo-leptos --locked
-cargo leptos new --git https://github.com/leptos-rs/start-axum --name demineur
-cd demineur 
+```rust
+use leptos::prelude::*;
+#[component]
+fn Game() -> impl IntoView {
+    view! {
+        <div>
+            <h1>"Bonjour tout le monde"</h1>
+            <p>"Ceci est un paragraphe de notre composant"</p>
+        </div>
+    }
+}
 ```
 
-On va tout de suite ajouter les dépendances dont nous aurons besoin
-
-```bash
-cargo add reactive_stores rand 
-cargo add getrandom -F wasm_js
-cargo add serde -F derive
+On peut faire varier l'affichage du composant en fonction de variables ou de paramètres avec des if else
+```rust
+use leptos::prelude::*;
+#[component]
+fn HelloWorld() -> impl IntoView {
+    let is_a_balrog = true;
+    if  is_a_balrog {
+      view! {<p>fuyez ! pauvres fous !</p>}.into_any()  
+    } else {
+        view! {
+            <div>
+                <h1>"Bonjour tout le monde"</h1>
+                <p>"Ceci est un paragraphe de notre composant"</p>
+            </div>
+        }.into_any()
+    }
+}
 ```
 
-Reactive_stores est une librairie de store réactif.
-Et serde permettra d'envoyer des données entre axum et leptos.
-Rand nous permettra de générer aléatoirement les mines.
-Getrandom est une dépendance de rand mais nous allons devoir préciser quelle version utiliser pour le webassembly.
-Dans `.cargo/config.toml`, ajoutez
+## TODO de l'étape `first-component`
 
-```toml
-[target.'cfg(target_arch = "wasm32")']
-rustflags = ["--cfg", "getrandom_backend=\"wasm_js\""]
+Pour notre première étape, nous allons créer un composant `Game` qui affichera un message de fin de partie et un bouton pour relancer une partie.
+
+Voici comment procéder pas à pas :
+
+Créons un dossier components dans src et un fichier mod.rs dans ce dossier.
+Ce dossier contiendra les composants de notre application.
+Créeons ensuite un fichier game.rs dans ce dossier et n'oublions pas de le rattacher au mod.rs.
+
+```rust
+// src/components/game.rs
+
+use leptos::prelude::*;
+#[component]
+fn Game() -> impl IntoView {
+    view! {
+      <div class="overlay">
+        <div class="overlay-container">
+          <div class="message">"Perdu"</div>
+          <button>"Rejouer"</button>
+        </div>
+      </div>
+    }
+}
 ```
 
-Enfin, vous pouvez lancer le projet pour tester l'installation
+On peut faire varier l'affichage du composant en fonction de variables ou de paramètres avec des if else
+```rust
+use leptos::prelude::*;
+#[component]
+fn Game() -> impl IntoView {
+    let is_game_over = true;
+    if is_game_over {
+        view! {
+      <div class="overlay">
+        <div class="overlay-container">
+          <div class="message">"Perdu"</div>
+          <button >
+              "Rejouer"
+          </button>
+        </div>
+      </div>
+    }.into_any()
+    } else {
+        view! {}.into_any()
+    }
+}
+```
 
 
-```bash
-cargo leptos watch
+Ajoutons notre composant dans la home page : 
+```Rust 
+// src/app.rs
+use crate::components::game::Game;
+
+// [...]
+#[component]
+fn HomePage() -> impl IntoView {
+
+    view! {
+        <Game/>
+    }
+}
 ```

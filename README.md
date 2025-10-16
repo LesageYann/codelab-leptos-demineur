@@ -15,8 +15,8 @@ Les différents exercices sont matérialisés par des tags git dont voici la lis
 - init 
 - first-component 
 - let-s-interact
-- be-reactive (vous êtes ici)
-- use-component-in-component
+- be-reactive 
+- use-component-in-component (vous êtes ici)
 - first-effect
 - first-cell
 - the-grid
@@ -25,41 +25,66 @@ Les différents exercices sont matérialisés par des tags git dont voici la lis
 
 ## Concept Leptos
 
-Leptos ne réagit au changement des données que si celles-ci sont des signaux.
-Il y a deux façons de créer des signaux :
-- avec la fonction `signal`.
-- avec la fonction `RwSignal::new`.
+Pas concept cette fois-ci, mais un peu de refactoring pour utiliser un composant dans un autre.
+
+## TODO de l'étape `use-component-in-component`
+
+Transformons notre boolean en un enum pour plus de clarté.
 
 ```rust
-let (names, set_names) = signal(Vec::new());
-if names.get().is_empty() {
-    set_names(vec!["Alice".to_string()]);
-}
+//src/components/mod.rs
 
-let rw_names = RwSignal::new(Vec::new());
-if rw_names.get().is_empty() {
-    rw_names.set(vec!["Alice".to_string()]);
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum GameStatus {
+    Playing,
+    New,
+    Lost,
 }
 ```
 
-il est à noter que les signaux ne seront reactifs que si on les utilise dans la macro `view!` ou s'ils sont passé en props à un composant.
-
-## TODO de l'étape `be-reactive`
-
-Changez le bouton `rejouez` pour qu'il change le signal `is_game_over` à `false` quand on clique dessus.
+On découpe game.rs en extrayant la partie overlay.
 
 ```rust
-//src/components/game.rs
+// src/components/game.rs
+use leptos::prelude::*;
+use crate::components::GameStatus;
 
-//[...]
-let is_game_over = RwSignal::new(true); //attention le mut à de nouveau disparu ! 
-view ! { {move ||{ // comme dit plus haut, il faut une closure pour être dans un contexte réactif
-    if is_game_over.get() {
-    //[...]
-    <button on:click=move |_| {is_game_over.set(false)} >
-      "Rejouer"
-    </button>
-    //[...]
-}}}
+#[component]
+pub fn GameOverOverlay(state: RwSignal<GameStatus>) -> impl IntoView {
+    view! {
+        {move ||
+             if *state.read() == GameStatus::Lost {
+                 view! {
+                     <div class="overlay">
+                        <div class="overlay-container">
+                            <div class="message">"Perdu"</div>
+                            <button
+                                on:click=move |_| {
+                                    state.set(GameStatus::New);
+                                }
+                            >
+                                "Rejouer"
+                            </button>
+                        </div>
+                     </div>
+                 }.into_any()
+             } else {
+                 view! {}.into_any()
+             }
+        }
+    }
+}
 ```
 
+Et on l'utilise dans game.rs
+
+```rust
+// src/components/game.rs
+#[component]
+pub fn Game() -> impl IntoView {
+    let game_status = RwSignal::new(GameStatus::Lost);
+    view! {
+      <GameOverOverlay state=game_status />
+    }
+}
+```

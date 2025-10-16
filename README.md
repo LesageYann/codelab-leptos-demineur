@@ -18,31 +18,39 @@ Les différents exercices sont matérialisés par des tags git dont voici la lis
 - be-reactive 
 - use-component-in-component 
 - first-effect
-- first-cell (vous êtes ici)
-- the-grid
+- first-cell 
+- the-grid (vous êtes ici)
 - avoid-cloning
 - improve-the-game
 
 ## Concept Leptos
 
-Pour cette étape, le nouveau concept est l'utilisation de class conditionnelles dans les composants.
+## TODO de l'étape `the-grid`
+
+On va lier le chargement de la grille à notre store pour afficher la grille ensuite.
 
 ```rust
+// src/components/game.rs
+
 #[component]
-fn MySpecialButton() -> impl IntoView {
-    let mon_test = true;
-    view! {
-        <button
-            class="my-button"
-            class:colored=move || mon_test
-        >
-        </button>
-    }
+pub fn Game(case: Case) -> impl IntoView {
+    let state = Store::new(GameState::new());
+    // [...]
+    let new_grid = Resource::new(move || game_status, |refresh| reset_grid(refresh));
+
+    Effect::new(move || {
+        match new_grid.get() {
+            Some(Some(data)) => {
+                new_grid.set(None);
+                let formatted_cases = state.get().format_cases_to_index_cases(data);
+                state.rows().set(formatted_cases);
+            }
+            _ => {}
+        };
+    });
+    // [...]
 }
 ```
-
-
-## TODO de l'étape `first-cell`
 
 Notre cellule à plusieurs états possibles : 
 - cachée
@@ -57,29 +65,34 @@ Pour le dernier état, nous allons utiliser une div.
 Ce qui donne le code suivant : 
 
 ```rust
-use crate::model::board::Case;
-use leptos::prelude::*;
+// src/components/game.rs
 
 #[component]
-pub fn Cell(case: Case) -> impl IntoView {
-    if case.is_revealed() && !case.is_mine() {
-        view! {
-            <div
-                class="cell square revealed"
-            >
-            {case.get_mines_around()}
+pub fn Game(case: Case) -> impl IntoView {
+    // [...]
+
+    view! {
+        <div class="square">
+            <div class="grid" style="grid-template-columns: repeat(10, 1fr); grid-template-rows: repeat(10, 1fr); ">
+                { state.rows()
+                    .get()
+                    .iter()
+                    .enumerate()
+                    .map(|(idx, case)| {
+                        let case_cloned = case.clone();
+                        view! {
+                          <Cell
+                            case=case_cloned
+                            on:click = move |_| {
+                              console_log(&format!("click on cell {}", idx));
+                            }
+                          />
+                        }
+                    })
+                    .collect::<Vec<_>>()}
             </div>
-        }.into_any()
-    } else {
-        view! {
-            <button
-                class="cell square"
-                class:revealed=move || case.is_revealed()
-                class:mine=move || case.is_revealed() && case.is_mine()
-                class:flag=move || case.is_flagged()
-            />
-        }.into_any()
+        </div>
+        <GameOverOverlay state=game_status /> 
     }
 }
 ```
-Notez que le `if else` n'est pas dans un `view! { ... }`. La réactivité sera donc gérée par le composant parent.

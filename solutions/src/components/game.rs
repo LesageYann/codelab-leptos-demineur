@@ -5,12 +5,38 @@ use crate::components::cell::Cell;
 use crate::components::game_over_overlay::GameOverOverlay;
 use crate::components::GameStatus;
 use crate::model::board::Case;
-use crate::model::board_store::{generate_new_grid, GameState, GameStateStoreFields};
+use crate::model::board_store::{generate_new_grid, reveal_from_server, GameState, GameStateStoreFields};
 
 #[component]
 pub fn Game() -> impl IntoView {
     let state = Store::new(GameState::new());
     let game_status = RwSignal::new(GameStatus::New);
+    let last_click_on = RwSignal::new(-1);
+
+    let last_click_result = Resource::new(
+        move || last_click_on.get(),
+        |position| reveal_from_server(position),
+    );
+
+    Effect::new(move || {
+        match last_click_result.get() {
+            Some(Ok(data)) => {
+                last_click_result.set(None);
+                let mut rows = state.get().rows;
+                data.iter().for_each(|(idx, new_case)| {
+                    if new_case.is_mine() {
+                        game_status.set(GameStatus::Lost);
+                    }
+
+                    rows[*idx].case = new_case.clone();
+                });
+                console_log(&format!("length {}", data.len()));
+
+                state.rows().set(rows);
+            }
+            _ => console_log("no data from last click"),
+        };
+    });
 
     async fn reset_grid(game_status: RwSignal<GameStatus>) -> Option<Vec<Case>> {
         console_log("Resetting grid");
@@ -57,7 +83,7 @@ pub fn Game() -> impl IntoView {
                     <Cell
                         case=idx_case.get().case.clone()
                         on:click = move |_| {
-                              console_log(&format!("click on cell {}", idx_case.get().idx));
+                            last_click_on.set(idx_case.get().idx as isize);
                         }
                     />
                 </For>

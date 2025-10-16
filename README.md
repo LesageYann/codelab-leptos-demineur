@@ -20,48 +20,73 @@ Les différents exercices sont matérialisés par des tags git dont voici la lis
 - first-effect
 - first-cell 
 - the-grid 
-- avoid-cloning (vous êtes ici)
-- improve-the-game
+- avoid-cloning 
+- improve-the-game (vous êtes ici)
 
 ## Concept Leptos
 
-Sur un signal get va créer un clone de la valeur. Il est donc important de privilégier les références grâce à `read` et `with` quand c'est possible.
-De même un map n'est pas très efficace car il va re-rendre tout le tableau si un élément change.
-On utilisera plutôt le composant `<For>`.
+## TODO de l'étape `improve-the-game`
 
-## TODO de l'étape `avoid-cloning`
-
-Nous allons juste reprendre la boucle pour rendre la grille : 
+Pour pouvoir révélé les cases, nous allons devoir demander le status de la case au serveur.
+Or nous pouvons pas avoir un comportement asynchrone dans un event handler. 
+Nous allons donc devoir créer un effet qui va écouter les changements d'une signal `last_click_on` et 
+faire la requête au serveur à chaque fois que cette signal change.
+L'apparence de la case sera gérée par un changement d'état dans le store.
 
 ```rust
-// src/components/game.rs
 
-#[component]
-pub fn Game(case: Case) -> impl IntoView {
+#[composant]
+fn game() -> impl IntoView {
+  // [...]
+    let last_click_on = RwSignal::new(-1);
+
+    let last_click_result = Resource::new(
+        move || last_click_on.get(),
+        |position| reveal_from_server(position),
+    );
+
+    Effect::new(move || {
+        match last_click_result.get() {
+            Some(Ok(data)) => {
+                last_click_result.set(None);
+                let mut rows = state.get().rows;
+                data.iter().for_each(|(idx, new_case)| {
+                    if new_case.is_mine() {
+                        game_status.set(GameStatus::Lost);
+                    }
+
+                    rows[*idx].case = new_case.clone();
+                });
+                console_log(&format!("length {}", data.len()));
+
+                state.rows().set(rows);
+            }
+            _ => console_log("no data from last click"),
+        };
+    });
+
+  view! {
     // [...]
-
-    view! {
-        <div class="square">
-            <div class="grid" style="grid-template-columns: repeat(10, 1fr); grid-template-rows: repeat(10, 1fr); ">
-                { state.rows()
-                    .get()
-                    .iter()
-                    .enumerate()
-                    .map(|(idx, case)| {
-                        let case_cloned = case.clone();
-                        view! {
-                          <Cell
-                            case=case_cloned
-                            on:click = move |_| {
-                              console_log(&format!("click on cell {}", idx));
-                            }
-                          />
-                        }
-                    })
-                    .collect::<Vec<_>>()}
-            </div>
-        </div>
-        <GameOverOverlay state=game_status /> 
-    }
+   
+        <Cell
+          case=idx_case.get().case.clone()
+          on:click = move |_| {
+            console_log(&format!("click on cell {}", idx_case.get().idx));
+            // au lieu de faire la requête ici, on met à jour selected_case
+            last_click_on.set(idx_case.get().idx as isize);
+          }
+        />
+    // [...]
+  }
 }
 ```
+
+## Et la suite ?
+
+A vous de jouer ! Voici quelques idées d'améliorations :
+- gérer le clic droit pour poser un drapeau (on:contextmenu pour le clic droit et `x.update(|x|{ //les modif sur x})` pour modifier une seule entrée d'un store)
+- agrémenter la fin de partie (victoire / défaite)
+- ajouter un counter de mines restantes (via signal ou store)
+- pouvoir changer la taille de la grille et le nombre de mines
+- pouvoir avoir plusieurs parties en cours (modifier le state côté serveur
+  ou passer par une base de données)

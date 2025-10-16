@@ -7,7 +7,6 @@ use crate::model::board_store::generate_new_grid;
 
 #[component]
 pub fn Game() -> impl IntoView {
-    let game_status = RwSignal::new(GameStatus::Lost);
     let game_status = RwSignal::new(GameStatus::New);
 
     async fn reset_grid(game_status: RwSignal<GameStatus>) -> Option<Vec<Case>> {

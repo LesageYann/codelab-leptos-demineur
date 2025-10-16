@@ -19,50 +19,19 @@ Les différents exercices sont matérialisés par des tags git dont voici la lis
 - use-component-in-component 
 - first-effect
 - first-cell 
-- the-grid (vous êtes ici)
-- avoid-cloning
+- the-grid 
+- avoid-cloning (vous êtes ici)
 - improve-the-game
 
 ## Concept Leptos
 
-## TODO de l'étape `the-grid`
+Sur un signal get va créer un clone de la valeur. Il est donc important de privilégier les références grâce à `read` et `with` quand c'est possible.
+De même un map n'est pas très efficace car il va re-rendre tout le tableau si un élément change.
+On utilisera plutôt le composant `<For>`.
 
-On va lier le chargement de la grille à notre store pour afficher la grille ensuite.
+## TODO de l'étape `avoid-cloning`
 
-```rust
-// src/components/game.rs
-
-#[component]
-pub fn Game(case: Case) -> impl IntoView {
-    let state = Store::new(GameState::new());
-    // [...]
-    let new_grid = Resource::new(move || game_status, |refresh| reset_grid(refresh));
-
-    Effect::new(move || {
-        match new_grid.get() {
-            Some(Some(data)) => {
-                new_grid.set(None);
-                let formatted_cases = state.get().format_cases_to_index_cases(data);
-                state.rows().set(formatted_cases);
-            }
-            _ => {}
-        };
-    });
-    // [...]
-}
-```
-
-Notre cellule à plusieurs états possibles : 
-- cachée
-- marquée (drapeau)
-- game over (mine cliquée)
-- révélée (vide, nombre, mine)
-
-Pour les trois premiers états, nous pouvons les représenter comme des boutons. 
-Bien que la mine pourrait ne pas être cliquable, elle contient le même texte que les autres états.
-Pour le dernier état, nous allons utiliser une div.
-
-Ce qui donne le code suivant : 
+Nous allons juste reprendre la boucle pour rendre la grille : 
 
 ```rust
 // src/components/game.rs

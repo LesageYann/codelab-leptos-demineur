@@ -49,22 +49,18 @@ pub fn Game() -> impl IntoView {
     view! {
         <div class="square">
             <div class="grid" style="grid-template-columns: repeat(10, 1fr); grid-template-rows: repeat(10, 1fr); ">
-               {move || state.rows()
-                   .get()
-                    .iter()
-                    .enumerate()
-                    .map(|(idx, case)| {
-                        let case_cloned = case.clone();
-                        view! {
-                          <Cell
-                            case=case_cloned.case
-                            on:click = move |_| {
-                              console_log(&format!("click on cell {}", idx));
-                            }
-                          />
+              <For
+                    each=move ||  state.rows()
+                    key=|idx_case| idx_case.get().get_key()
+                    let:idx_case
+                >
+                    <Cell
+                        case=idx_case.get().case.clone()
+                        on:click = move |_| {
+                              console_log(&format!("click on cell {}", idx_case.get().idx));
                         }
-                    })
-                    .collect::<Vec<_>>()}
+                    />
+                </For>
             </div>
         </div>
         <GameOverOverlay state=game_status /> 

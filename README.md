@@ -16,8 +16,8 @@ Les différents exercices sont matérialisés par des tags git dont voici la lis
 - first-component 
 - let-s-interact
 - be-reactive 
-- use-component-in-component (vous êtes ici)
-- first-effect
+- use-component-in-component 
+- first-effect (vous êtes ici)
 - first-cell
 - the-grid
 - avoid-cloning
@@ -25,66 +25,121 @@ Les différents exercices sont matérialisés par des tags git dont voici la lis
 
 ## Concept Leptos
 
-Pas concept cette fois-ci, mais un peu de refactoring pour utiliser un composant dans un autre.
+Un effect est une fonction qui s'exécute automatiquement lorsque les signaux qu'elle utilise changent.
+Le tracking des dépendances est :
+- automatique: vous n'avez pas besoin de déclarer les dépendances
+- dynamique: les dépendances sont recalculées à chaque exécution de l'effect. 
+si vous avez une branche conditionnelle, les dépendances peuvent changer à chaque exécution.
 
-## TODO de l'étape `use-component-in-component`
-
-Transformons notre boolean en un enum pour plus de clarté.
+Pour éviter la triche de joueurs indélicats, la génération de la grille de démineur doit se faire côté serveur.
+Leptos propose un moyen simple de faire des requêtes HTTP de manière transparente :
 
 ```rust
-//src/components/mod.rs
+#[server]
+pub async fn server_function() -> Result<Vec<Case>,  ServerFnError> {
+    // tout le code ici est exécuté côté serveur
+}
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum GameStatus {
-    Playing,
-    New,
-    Lost,
+#[component]
+pub fn Game() -> impl IntoView {
+    let new_grid = Resource::new(move || game_status, |refresh| server_function(refresh));
 }
 ```
 
-On découpe game.rs en extrayant la partie overlay.
+Vous pouvez aussi voir l'apparition d'une nouvelle structure : Resource. Cette structure est un signal asynchrone.
+Elle possède une fonction de refetch.
+
+
+
+## TODO de l'étape `first-effect`
+
+Dans cette étape, nous allons initialiser une grille de démineur.
+Pour ce faire, nous allons utiliser un modèle simple qui est fournit dans le dossier `solutions/src/model`. 
+Ce modèle contient trois parties :
+- board: une structure pour décrire une grille de démineur, elle sera stocker côté serveur
+- board_store: une structure qui réorganise la donnée pour le front. 
+Si vous jetez un oeil au code, vous verrez que cette structure utilise des macros `server`.
+Pour ce qui est des stores, il s'agit d'une structure qui dérive de la macro store. 
+- server_state: une structure de données globale pour le serveur. 
+
+Il faudra rajouter la déclaration du module dans `lib.rs`
+```rust
+// src/lib.rs
+pub mod model;
+```
+Il nous faudra aussi rajouter un state partagé pour le serveur.
+
+```rust
+// /src/main.rs
+// [...]
+async fn main() {
+    // [...]
+    use std::sync::{Arc, Mutex};
+    use demineur::model::board::Board;
+    use demineur::model::server_state::ServerState;
+    // [...]
+    let app_state = Arc::new(Mutex::new(ServerState { board: Board::new(10) }));
+
+    let app = Router::new()
+        .leptos_routes_with_context(
+            &leptos_options,
+            routes,
+            {
+                move || provide_context(app_state.clone())
+            },
+            {
+                let leptos_options = leptos_options.clone();
+                move || shell(leptos_options.clone())
+            }
+        )
+        .fallback(leptos_axum::file_and_error_handler(shell))
+        .with_state(leptos_options);
+    // [...]
+}
+```
+
+Nous allons maintenant préparer notre resource qui va appeler une fonction serveur pour initialiser la grille.
 
 ```rust
 // src/components/game.rs
-use leptos::prelude::*;
-use crate::components::GameStatus;
-
-#[component]
-pub fn GameOverOverlay(state: RwSignal<GameStatus>) -> impl IntoView {
-    view! {
-        {move ||
-             if *state.read() == GameStatus::Lost {
-                 view! {
-                     <div class="overlay">
-                        <div class="overlay-container">
-                            <div class="message">"Perdu"</div>
-                            <button
-                                on:click=move |_| {
-                                    state.set(GameStatus::New);
-                                }
-                            >
-                                "Rejouer"
-                            </button>
-                        </div>
-                     </div>
-                 }.into_any()
-             } else {
-                 view! {}.into_any()
-             }
+pub fn Game() -> impl IntoView {
+    // [...]
+    let game_status = RwSignal::new(GameStatus::New);
+    async fn reset_grid(game_status: RwSignal<GameStatus>) -> Option<Vec<Case>> {
+        if game_status.get() != GameStatus::New {
+            return None;
+        }
+        game_status.set(GameStatus::Playing);
+        match generate_new_grid().await {
+            Ok(data) => Some(data),
+            Err(err) => {
+                console_log(&format!("Error generating new grid: {:?}", err));
+                None
+            }
         }
     }
+
+    let new_grid = Resource::new(move || game_status, |refresh| reset_grid(refresh));
+    // [...]
 }
 ```
 
-Et on l'utilise dans game.rs
+Et enfin, notre effet : 
 
 ```rust
 // src/components/game.rs
 #[component]
 pub fn Game() -> impl IntoView {
-    let game_status = RwSignal::new(GameStatus::Lost);
+    // [...]
+    Effect::new(move || {
+        match game_status.get() {
+            GameStatus::New => new_grid.refetch(),
+            _ => {}
+        };
+    });
+    
     view! {
-      <GameOverOverlay state=game_status />
+        // [...]
     }
 }
 ```

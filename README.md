@@ -14,8 +14,8 @@ Les différents exercices sont matérialisés par des tags git dont voici la lis
 - instructions (commencez ici)
 - init 
 - first-component 
-- let-s-interact (vous êtes ici)
-- be-reactive
+- let-s-interact
+- be-reactive (vous êtes ici)
 - use-component-in-component
 - first-effect
 - first-cell
@@ -25,29 +25,26 @@ Les différents exercices sont matérialisés par des tags git dont voici la lis
 
 ## Concept Leptos
 
-Dans Leptos, le click droit et le click gauche sont gérés avec deux fonctions différentes ayant la même signature :
-Un seul paramètre : une closure prenant un événement en paramètre.
-Nous verrons plus tard comment lancer des traitements asynchrones dans ces closures.
+Leptos ne réagit au changement des données que si celles-ci sont des signaux.
+Il y a deux façons de créer des signaux :
+- avec la fonction `signal`.
+- avec la fonction `RwSignal::new`.
 
 ```rust
-use leptos::prelude::*;
-#[component]
-fn TextButton() -> impl IntoView {
-    view! {
-        <button 
-            on:click=move |_| log::info!("click gauche")
-            on:contextmenu=move |ev| {
-                ev.prevent_default();
-                log::info!("click droit");
-            }
-        >
-            "Click ici"
-        </button>
-    }
+let (names, set_names) = signal(Vec::new());
+if names.get().is_empty() {
+    set_names(vec!["Alice".to_string()]);
+}
+
+let rw_names = RwSignal::new(Vec::new());
+if rw_names.get().is_empty() {
+    rw_names.set(vec!["Alice".to_string()]);
 }
 ```
 
-## TODO de l'étape `first-component`
+il est à noter que les signaux ne seront reactifs que si on les utilise dans la macro `view!` ou s'ils sont passé en props à un composant.
+
+## TODO de l'étape `be-reactive`
 
 Changez le bouton `rejouez` pour qu'il change le signal `is_game_over` à `false` quand on clique dessus.
 
@@ -55,12 +52,14 @@ Changez le bouton `rejouez` pour qu'il change le signal `is_game_over` à `false
 //src/components/game.rs
 
 //[...]
-let mut is_game_over = true; //attention à bien rajouter mut
-//[...]
-<button on:click=move |_| {is_game_over = false} >
-"Rejouer"
-</button>
-//[...]
+let is_game_over = RwSignal::new(true); //attention le mut à de nouveau disparu ! 
+view ! { {move ||{ // comme dit plus haut, il faut une closure pour être dans un contexte réactif
+    if is_game_over.get() {
+    //[...]
+    <button on:click=move |_| {is_game_over.set(false)} >
+      "Rejouer"
+    </button>
+    //[...]
+}}}
 ```
 
-Si vous ne voyez pas le changement... C'est normal, nous allons corrigez ça dans l'étape suivante !

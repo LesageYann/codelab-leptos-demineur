@@ -2,13 +2,13 @@ use leptos::prelude::*;
 
 #[component]
 pub fn Game() -> impl IntoView {
-    let is_game_over = true;
+    let mut is_game_over = true;
     if is_game_over {
         view! {
       <div class="overlay">
         <div class="overlay-container">
           <div class="message">"Perdu"</div>
-          <button >
+          <button on:click=move |_| {is_game_over = false}>
               "Rejouer"
           </button>
         </div>

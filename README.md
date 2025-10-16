@@ -13,8 +13,8 @@ Le projet est organisé en deux parties :
 Les différents exercices sont matérialisés par des tags git dont voici la liste ordonnée : 
 - instructions (commencez ici)
 - init 
-- first-component (vous êtes ici)
-- let-s-interact
+- first-component 
+- let-s-interact (vous êtes ici)
 - be-reactive
 - use-component-in-component
 - first-effect
@@ -25,107 +25,42 @@ Les différents exercices sont matérialisés par des tags git dont voici la lis
 
 ## Concept Leptos
 
-Dans Leptos, la déclaration d'un composant repose sur deux choses :
- - la macro `#[component]`
- - une fonction qui retourne un `impl IntoView`
-
-Pour facilité la seconde partie, Leptos fournit la macro `view!` qui va retourner un élément `impl IntoView` depuis un RSX (comme JSX, mais en Rust).
-Regardons un exemple simple
+Dans Leptos, le click droit et le click gauche sont gérés avec deux fonctions différentes ayant la même signature :
+Un seul paramètre : une closure prenant un événement en paramètre.
+Nous verrons plus tard comment lancer des traitements asynchrones dans ces closures.
 
 ```rust
 use leptos::prelude::*;
 #[component]
-fn Game() -> impl IntoView {
+fn TextButton() -> impl IntoView {
     view! {
-        <div>
-            <h1>"Bonjour tout le monde"</h1>
-            <p>"Ceci est un paragraphe de notre composant"</p>
-        </div>
-    }
-}
-```
-
-On peut faire varier l'affichage du composant en fonction de variables ou de paramètres avec des if else
-```rust
-use leptos::prelude::*;
-#[component]
-fn HelloWorld() -> impl IntoView {
-    let is_a_balrog = true;
-    if  is_a_balrog {
-      view! {<p>fuyez ! pauvres fous !</p>}.into_any()  
-    } else {
-        view! {
-            <div>
-                <h1>"Bonjour tout le monde"</h1>
-                <p>"Ceci est un paragraphe de notre composant"</p>
-            </div>
-        }.into_any()
+        <button 
+            on:click=move |_| log::info!("click gauche")
+            on:contextmenu=move |ev| {
+                ev.prevent_default();
+                log::info!("click droit");
+            }
+        >
+            "Click ici"
+        </button>
     }
 }
 ```
 
 ## TODO de l'étape `first-component`
 
-Pour notre première étape, nous allons créer un composant `Game` qui affichera un message de fin de partie et un bouton pour relancer une partie.
-
-Voici comment procéder pas à pas :
-
-Créons un dossier components dans src et un fichier mod.rs dans ce dossier.
-Ce dossier contiendra les composants de notre application.
-Créeons ensuite un fichier game.rs dans ce dossier et n'oublions pas de le rattacher au mod.rs.
+Changez le bouton `rejouez` pour qu'il change le signal `is_game_over` à `false` quand on clique dessus.
 
 ```rust
-// src/components/game.rs
+//src/components/game.rs
 
-use leptos::prelude::*;
-#[component]
-fn Game() -> impl IntoView {
-    view! {
-      <div class="overlay">
-        <div class="overlay-container">
-          <div class="message">"Perdu"</div>
-          <button>"Rejouer"</button>
-        </div>
-      </div>
-    }
-}
+//[...]
+let mut is_game_over = true; //attention à bien rajouter mut
+//[...]
+<button on:click=move |_| {is_game_over = false} >
+"Rejouer"
+</button>
+//[...]
 ```
 
-On peut faire varier l'affichage du composant en fonction de variables ou de paramètres avec des if else
-```rust
-use leptos::prelude::*;
-#[component]
-fn Game() -> impl IntoView {
-    let is_game_over = true;
-    if is_game_over {
-        view! {
-      <div class="overlay">
-        <div class="overlay-container">
-          <div class="message">"Perdu"</div>
-          <button >
-              "Rejouer"
-          </button>
-        </div>
-      </div>
-    }.into_any()
-    } else {
-        view! {}.into_any()
-    }
-}
-```
-
-
-Ajoutons notre composant dans la home page : 
-```Rust 
-// src/app.rs
-use crate::components::game::Game;
-
-// [...]
-#[component]
-fn HomePage() -> impl IntoView {
-
-    view! {
-        <Game/>
-    }
-}
-```
+Si vous ne voyez pas le changement... C'est normal, nous allons corrigez ça dans l'étape suivante !
